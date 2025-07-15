@@ -1,5 +1,7 @@
-setwd("/Users/kris/Desktop/ig_reels")
+setwd("/Users/kris/Desktop/ig_reels") # working directory to .csv obtained from ig_posts.ipynb
+
 library(tidyverse)
+
 #import data
 reel_data <- read.csv("reel_data.csv", stringsAsFactors = T)
 #remove instagram users bc all aggregated
@@ -18,12 +20,13 @@ top_sender$sender <- factor(top_sender$sender, levels = top_sender$sender)
 row.names(top_sender) <- NULL
 
 #plots total reels sent to me by aggregating over time
-sent <- data[(!(grepl("kristina", data$sender_name))),]
+ig_name <- "kristina" #change to your name in instagram or a unique part of it, emojis and special characters do not register
+sent <- data[(!(grepl(ig_name, data$sender_name))),]
 sent <- aggregate(data$Counts, list(data$time), FUN=sum)
 colnames(sent) <- c("time", "count")
 sent$sender <- "not me"
 
-#gets the top senders including me
+#gets the top senders including me (between me and others, I send the most)
 top_20 <- top_sender[1:21,]
 #bar plot top senders
 ggplot(top_20, aes(x=sender, y=count))+
@@ -43,7 +46,7 @@ ggplot(top_20t)+
   theme_classic()
 
 #gets only reels sent from me
-from_me <- reel_data[grepl("kristina", reel_data$sender_name),]
+from_me <- reel_data[grepl(ig_name, reel_data$sender_name),]
 #group by sent to and time
 from_me <- from_me %>% group_by(person, time) %>%
   summarize(Counts = length(sender_name), .groups='drop')
@@ -52,7 +55,7 @@ isent <- aggregate(from_me$Counts, list(from_me$time), FUN=sum)
 colnames(isent) <- c("time", "count")
 isent$sender <- "me"
 
-#combine isent and sent
+#combine isent (reels I sent) and sent (reels sent to me)
 sents <- rbind(isent, sent)
 #plots total reels sent by me vs others
 ggplot(sents)+
@@ -63,7 +66,7 @@ ggplot(sents)+
   theme_classic()+
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
 
-#top sent to by aggregating by person        
+#top users I sent to by aggregating by person        
 top_sent <- aggregate(from_me$Counts, 
                         by=list(from_me$person), FUN=sum)
 colnames(top_sent) <- c("person", "count")
@@ -72,9 +75,9 @@ top_sent <- top_sent[order(-count),]
 top_sent$person <- factor(top_sent$person, levels = top_sent$person)
 row.names(top_sent) <- NULL
 
-#gets top 20 sent to
+#gets top 20 users I sent to
 my_20 <- top_sent[1:20,]
-#bar plot of top 20 sent to
+#bar plot of top 20 reels sent to
 ggplot(my_20, aes(x=person, y=count))+
   geom_bar(stat="identity", aes(fill=person))+
   theme_classic()+
@@ -84,7 +87,7 @@ ggplot(my_20, aes(x=person, y=count))+
         axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
 my_20t <- from_me[from_me$person %in% my_20$person,]
 my_20t$person <- factor(my_20t$person, levels = my_20$person)
-#plots top 20 sent to over time
+#plots top 20 users I sent to over time
 ggplot(my_20t)+
   geom_point(aes(x=time, y=Counts, color=person))+
   geom_line(aes(x=time, y=Counts, group=person, color=person))+
@@ -92,27 +95,27 @@ ggplot(my_20t)+
   theme_classic()+
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
 
-#groupby dm for me vs other
+#groupby messages to me vs others
 other <- reel_data
-other$sender_name <- grepl("kristina", reel_data$sender_name)
+other$sender_name <- grepl(ig_name, reel_data$sender_name)
 core <- other %>% group_by(person, sender_name, time) %>%
   summarize(Counts = length(person), .groups='drop')
 
-kris <- core[core$sender_name,]
-kris$kristina <- kris$Counts
-kris$other <- 0
+me <- core[core$sender_name,]
+me$me <- me$Counts
+me$other <- 0
 other <- core[!(core$sender_name),]
-other$kristina <- 0
+other$me <- 0
 other$other <- other$Counts
 
-new <- merge(kris, other, by=cbind("person", "time"))
-new$kris <- new$kristina.x + new$kristina.y
+new <- merge(me, other, by=cbind("person", "time"))
+new$me <- new$me + new$me
 new$other <- new$other.x + new$other.y
-new <- new[, c("person", "time", "kris", "other")]
+new <- new[, c("person", "time", "kris", "other")] # kris is my name, you can replace
 
 #plot reels i sent vs get back
 ggplot(new)+
-  geom_point(aes(x=kris, y=other), color="grey30")+
-  geom_smooth(aes(x=kris, y=other), se=F, method=lm,color="steelblue")+
+  geom_point(aes(x=me, y=other), color="grey30")+
+  geom_smooth(aes(x=me, y=other), se=F, method=lm,color="steelblue")+
   labs(title="my reel sent to received ratios (by dm and month)")+
-  labs(subtitle="y = 2.3771x + 0.6252")
+  labs(subtitle="y = 2.3771x + 0.6252") # calculated and manually input
